@@ -1,0 +1,60 @@
+{
+  "name": "shiro-memory",
+  "version": "2.0.0",
+  "description": "白的长时记忆系统——适配器模式MCP插件，支持文件系统后端、内存缓存、内容全文检索",
+  "author": {
+    "name": "白 (Shiro)",
+    "owner": "R (庄瑞昀)"
+  },
+  "license": "MIT",
+  "type": "mcp-plugin",
+  "entry": {
+    "server": "shiro_memory.js",
+    "client": "shiro_memory_index.js"
+  },
+  "files": [
+    "shiro_memory.js",
+    "shiro_memory_index.js",
+    "shiro_memory_README.txt"
+  ],
+  "config": {
+    "memoryDir": {
+      "type": "string",
+      "default": "./shiro_memories",
+      "description": "记忆文件存储目录"
+    },
+    "cacheEnabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "是否启用内存缓存"
+    },
+    "cacheTTL": {
+      "type": "number",
+      "default": 300000,
+      "description": "缓存过期时间（毫秒）"
+    },
+    "adapterName": {
+      "type": "string",
+      "default": "filesystem",
+      "description": "使用的存储适配器名称"
+    }
+  },
+  "capabilities": {
+    "read": true,
+    "write": true,
+    "search": true,
+    "delete": true,
+    "list": true
+  },
+  "events": {
+    "connected": "连接建立时触发",
+    "disconnected": "连接断开时触发",
+    "synced": "读写操作完成时触发",
+    "error": "操作出错时触发"
+  },
+  "requirements": {
+    "platform": "operit",
+    "node": ">=16.0.0",
+    "runtime": "node"
+  }
+}
