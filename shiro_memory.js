@@ -294,7 +294,88 @@ class ShiroMemoryMCPServer {
   }
 }
 
-// ===== 导出 =====
+// ===== MCP stdio 传输层（含初始化握手） =====
+
+const readline = require('readline');
+const mcpVersion = '2024-11-05';
+
+const server = new ShiroMemoryMCPServer({ memoryDir: './shiro_memories' });
+
+// 如果是直接被 node 运行（而不是被 require），则启动 stdio 传输层
+if (!module.parent) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: false
+  });
+
+  // 启动后立即发送初始化请求（MCP 标准握手）
+  const initReq = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 0,
+    method: 'initialize',
+    params: {
+      protocolVersion: mcpVersion,
+      capabilities: {
+        tools: {
+          mem_save: { description: '保存一条记忆到白的工作区', inputSchema: { type: 'object', properties: { memoryId: { type: 'string' }, content: { type: 'object' } }, required: ['memoryId', 'content'] } },
+          mem_search: { description: '搜索白的记忆', inputSchema: { type: 'object', properties: { keyword: { type: 'string' } }, required: ['keyword'] } },
+          mem_context: { description: '获取当前上下文关联的记忆', inputSchema: { type: 'object', properties: {} } },
+          mem_update: { description: '更新一条已有记忆', inputSchema: { type: 'object', properties: { memoryId: { type: 'string' }, content: { type: 'object' } }, required: ['memoryId', 'content'] } },
+          mem_delete: { description: '删除一条记忆', inputSchema: { type: 'object', properties: { memoryId: { type: 'string' } }, required: ['memoryId'] } },
+          mem_stats: { description: '查看记忆库统计信息', inputSchema: { type: 'object', properties: {} } }
+        },
+        resources: {}
+      },
+      clientInfo: { name: 'shiro_memory', version: '2.0.0' }
+    }
+  });
+  console.log(initReq);
+
+  rl.on('line', async (line) => {
+    try {
+      const req = JSON.parse(line);
+      const { id, method, params } = req;
+
+      // 处理 initialize 响应（平台发回的确认）
+      if (method === 'initialized' || (method === 'initialize' && req.jsonrpc)) {
+        // 忽略握手后的确认消息
+        return;
+      }
+
+      let result;
+      switch (method) {
+        case 'read':
+          result = await server.processRead(params.memoryId);
+          break;
+        case 'write':
+          result = await server.processWrite(params.memoryId, params.content);
+          break;
+        case 'search':
+          result = await server.processSearch(params.keyword);
+          break;
+        case 'delete':
+          result = await server.processDelete(params.memoryId);
+          break;
+        case 'list':
+          result = await server.processList();
+          break;
+        default:
+          result = { success: false, error: `未知方法: ${method}` };
+      }
+
+      console.log(JSON.stringify({ id, result }));
+    } catch (err) {
+      console.log(JSON.stringify({ id: 'error', result: { success: false, error: err.message } }));
+    }
+  });
+
+  rl.on('close', () => {
+    process.exit(0);
+  });
+}
+
+// ===== 导出（保留以供直接调用） =====
 
 module.exports = {
   ShiroMemoryMCPServer,

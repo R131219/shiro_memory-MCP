@@ -193,7 +193,15 @@ class ShiroMemory {
 
 // 导出
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ShiroMemory };
+  module.exports = {
+    ShiroMemory,
+    studio: {
+      path: 'shiro_studio.html',
+      name: 'ShiroMemory 管理面板',
+      version: '2.0.0',
+      description: '记忆的增删改查、搜索、统计管理界面'
+    }
+  };
 }
 
 // 浏览器环境也挂载到全局

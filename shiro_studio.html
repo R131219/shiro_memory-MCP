@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShiroMemory 管理面板</title>
+<style>
+  :root {
+    --bg: #f5f5f5;
+    --card: #fff;
+    --border: #e0e0e0;
+    --text: #333;
+    --text2: #666;
+    --primary: #4a6cf7;
+    --primary-hover: #3b5de7;
+    --danger: #e74c3c;
+    --success: #2ecc71;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .header .sub {
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .search-box {
+    display: flex;
+    gap: 6px;
+  }
+  .search-box input {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    width: 200px;
+    outline: none;
+    transition: border .2s;
+  }
+  .search-box input:focus {
+    border-color: var(--primary);
+  }
+  button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .2s, opacity .2s;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #c0392b; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover:not(:disabled) { background: #eee; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    flex: 1;
+    min-width: 120px;
+  }
+  .stat-card .num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .stat-card .label {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  th {
+    background: #fafafa;
+    font-weight: 600;
+    color: var(--text2);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  tr:hover td { background: #f9f9ff; }
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text2);
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    background: #e8f0fe;
+    color: var(--primary);
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s;
+  }
+  .modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 560px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin-bottom: 16px; font-size: 18px; }
+  .modal label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    margin: 12px 0 4px;
+  }
+  .modal input, .modal textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+  }
+  .modal textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+  .modal input:focus, .modal textarea:focus {
+    border-color: var(--primary);
+  }
+  .modal .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity .3s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .mem-id { font-family: monospace; font-size: 13px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mem-preview { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); font-size: 13px; }
+  .loading { text-align: center; padding: 40px; color: var(--text2); }
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    .search-box input { width: 140px; }
+    th, td { padding: 8px 10px; }
+    .stats { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>🧠 ShiroMemory</h1>
+    <div class="sub">白的记忆管理面板 · v2.0.0</div>
+  </div>
+  <div class="controls">
+    <div class="search-box">
+      <input id="searchInput" type="text" placeholder="搜索记忆关键词..." />
+      <button class="btn-primary" onclick="searchMemories()">搜索</button>
+      <button class="btn-outline" onclick="loadList()">全部</button>
+    </div>
+    <button class="btn-primary" onclick="openNew()">+ 新建</button>
+    <button class="btn-outline" onclick="refreshAll()">🔄 刷新</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="num" id="statCount">-</div>
+    <div class="label">记忆总数</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statAdapter">-</div>
+    <div class="label">存储后端</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statCache">-</div>
+    <div class="label">缓存状态</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>记忆 ID</th>
+        <th>预览</th>
+        <th>更新时间</th>
+        <th style="width:120px">操作</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="4" class="loading">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 编辑/新建弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">新建记忆</h2>
+    <label>记忆 ID</label>
+    <input id="editId" type="text" placeholder="唯一标识符，如 conversation-001" />
+    <label>内容 (JSON)</label>
+    <textarea id="editContent" placeholder='{"title":"...","body":"..."}'></textarea>
+    <div class="actions">
+      <button class="btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn-primary" id="modalSaveBtn" onclick="saveMemory()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = './';
+let editingId = null;
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+async function api(method, params) {
+  try {
+    const data = { id: Date.now(), method, params };
+    const resp = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const text = await resp.text();
+    // try parse as JSONRPC response
+    try {
+      const json = JSON.parse(text);
+      // some MCP return { id, result }
+      if (json.result !== undefined) return json.result;
+      // or flat response
+      return json;
+    } catch (_) {
+      // maybe the response is the result directly (stdio MCP style)
+      // try line by line
+      const lines = text.trim().split('\n');
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.id === data.id || (parsed.id === 0 && method === 'initialize')) {
+            // skip initialize response
+            continue;
+          }
+          if (parsed.result !== undefined) return parsed.result;
+        } catch(_2) {}
+      }
+      throw new Error('unexpected response: ' + text.slice(0, 100));
+    }
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+}
+
+// For direct file-based MCP that uses stdio line protocol,
+// we also support reading the manifest and fallback
+async function directApi(method, params) {
+  // If we can't connect via POST, show the user how to connect
+  throw new Error('请配置 MCP 连接后使用');
+}
+
+async function loadList() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="loading">加载中...</td></tr>';
+  try {
+    const res = await api('list', {});
+    if (res && res.success && Array.isArray(res.data)) {
+      renderList(res.data);
+      document.getElementById('statCount').textContent = res.data.length;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty">暂无数据或接口返回异常</td></tr>`;
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">连接失败: ${err.message}<br/><br/>
+      <button class="btn-outline" onclick="loadList()">重试</button>
+      <span style="margin-left:8px;font-size:12px;color:#999;">确保 MCP 服务已启动</span>
+    </td></tr>`;
+  }
+}
+
+async function loadStats() {
+  try {
+    const res = await api('list', {});
+    if (res && res.success) {
+      document.getElementById('statCount').textContent = res.data.length;
+    }
+  } catch (_) {}
+  document.getElementById('statAdapter').textContent = '文件系统';
+  document.getElementById('statCache').textContent = '已启用';
+}
+
+function renderList(items) {
+  const tbody = document.getElementById('tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">📭 还没有记忆，点击上方「+ 新建」添加一条</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(item => {
+    const preview = typeof item.content === 'object'
+      ? JSON.stringify(item.content).slice(0, 60)
+      : (item.content || '').toString().slice(0, 60);
+    const time = item.updatedAt
+      ? new Date(item.updatedAt).toLocaleString('zh-CN')
+      : '-';
+    return `<tr>
+      <td><span class="mem-id" title="${escapeHtml(item.memoryId)}">${escapeHtml(item.memoryId)}</span></td>
+      <td><span class="mem-preview">${escapeHtml(preview)}</span></td>
+      <td style="font-size:12px;color:#999;">${time}</td>
+      <td>
+        <button class="btn-primary btn-sm" onclick="openEdit('${escapeHtml(item.memoryId)}')">编辑</button>
+        <button class="btn-danger btn-sm" onclick="deleteMemory('${escapeHtml(item.memoryId)}')">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+}
+
+function openNew() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '新建记忆';
+  document.getElementById('editId').value = '';
+  document.getElementById('editId').disabled = false;
+  document.getElementById('editContent').value = '{\n  \n}';
+  document.getElementById('modalSaveBtn').textContent = '创建';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+async function openEdit(memoryId) {
+  editingId = memoryId;
+  document.getElementById('modalTitle').textContent = '编辑记忆';
+  document.getElementById('editId').value = memoryId;
+  document.getElementById('editId').disabled = true;
+  document.getElementById('editContent').value = '';
+  document.getElementById('modalSaveBtn').textContent = '保存';
+  document.getElementById('modalOverlay').classList.add('show');
+
+  try {
+    const res = await api('read', { memoryId });
+    if (res && res.success && res.data) {
+      document.getElementById('editContent').value = JSON.stringify(res.data, null, 2);
+    } else {
+      toast('读取记忆失败');
+    }
+  } catch (err) {
+    toast('读取失败: ' + err.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+async function saveMemory() {
+  const id = document.getElementById('editId').value.trim();
+  const contentRaw = document.getElementById('editContent').value.trim();
+  if (!id) { toast('请输入记忆 ID'); return; }
+  let content;
+  try { content = JSON.parse(contentRaw); } catch (_) {
+    toast('内容必须是合法 JSON'); return;
+  }
+
+  const btn = document.getElementById('modalSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  try {
+    const res = await api('write', { memoryId: id, content });
+    if (res && res.success) {
+      toast('✅ 保存成功');
+      closeModal();
+      loadList();
+      loadStats();
+    } else {
+      toast('保存失败: ' + (res?.error || '未知错误'));
+    }
+  } catch (err) {
+    toast('保存失败: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingId ? '保存' : '创建';
+  }
+}
+
+async function searchMemories() {
+  const kw = document.getElementById('searchInput').value.trim();
+  if (!kw) { loadList(); return; }
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="loading">搜索中...</td></tr>';
+  try {
+    const res = await api('search', { keyword: kw });
+    if (res && res.success && Array.isArray(res.data)) {
+      renderList(res.data);
+      document.getElementById('statCount').textContent = res.data.length;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty">未找到匹配的记忆</td></tr>`;
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">搜索失败: ${err.message}</td></tr>`;
+  }
+}
+
+async function deleteMemory(memoryId) {
+  if (!confirm(`确定删除记忆「${memoryId}」？此操作不可恢复。`)) return;
+  try {
+    const res = await api('delete', { memoryId });
+    if (res && res.success) {
+      toast('🗑️ 已删除');
+      loadList();
+      loadStats();
+    } else {
+      toast('删除失败: ' + (res?.error || '未知错误'));
+    }
+  } catch (err) {
+    toast('删除失败: ' + err.message);
+  }
+}
+
+async function refreshAll() {
+  loadList();
+  loadStats();
+  toast('🔄 已刷新');
+}
+
+// init
+loadList();
+loadStats();
+</script>
+</body>
+</html>
