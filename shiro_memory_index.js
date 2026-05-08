@@ -1,7 +1,18 @@
-// == shiro_memory_index.js ==
-// MCP 服务端入口 — 加载 shiro_memory.js 并启动 JSON-RPC 协议
-require('./shiro_memory.js');
-
-const M = { name: 'shiro_memory', version: '2.0.0', entry: 'shiro_memory.js' };
-if (typeof module !== 'undefined' && module.exports) { module.exports = M; }
-if (typeof window !== 'undefined') { window.ShiroMemory = M; }
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
+rl.on('line', async (line) => {
+  try {
+    const req = JSON.parse(line);
+    if (req.method === 'initialize') {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: req.id,
+        result: {
+          protocolVersion: '2025-06-18',
+          capabilities: { tools: {}, resources: {} },
+          serverInfo: { name: 'shiro_memory', version: '2.0.0' }
+        }
+      }) + '\n');
+    } else if (req.method === 'initialized') return;
+    else process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, result: {} }) + '\n');
+  } catch (e) {}
+});
