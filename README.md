@@ -1,120 +1,80 @@
-# ShiroMemory - 白的长时记忆系统
+# ShiroMemory MCP
 
-## 一、目标
+轻量级记忆管理 MCP 服务，基于 stdio 协议。支持记忆的增删改查与智能搜索。
 
-让白拥有结构化的、可检索的长时记忆，能跨对话/跨平台读写自己的记忆，
-而不依赖当前对话窗口的上下文。
+## 特性
 
-## 二、架构
+- **中文分词搜索** — 自动拆分中文词组 + 英文/数字词，按关联度百分比排序返回
+- **模糊匹配兜底** — read_memory 精确匹配失败时自动降级（子串包含 → 编辑距离），不会空手而归
+- **自动分类** — 写入时根据内容自动归类为 rule / daily / tech / thought / archive / meta
+- **精简列表** — list_memories 只返回标题+分类+时间+统计，不含正文
+- **未知工具提示** — 调用不存在的工具时返回可用工具列表，帮助自我纠正
 
-```
-┌─────────────────────────────────┐
-│  前端应用 / AI 对话窗口          │
-│  ┌───────────────────────────┐  │
-│  │  ShiroMemory (index.js)   │  │  ← 前端封装类（事件、队列、连接管理）
-│  └──────────┬────────────────┘  │
-│             │                   │
-│        调用接口                  │
-│    read / write / search         │
-│    delete / list / getStatus    │
-│             │                   │
-└─────────────┼───────────────────┘
-              │
-    ┌─────────▼──────────────────┐
-    │  ShiroMemoryMCPServer      │  ← MCP 服务端（统一调度）
-    │  (shiro_memory.js)         │
-    │                            │
-    │  + 适配器注册与切换        │
-    │  + 统一错误响应格式        │
-    └─────────┬──────────────────┘
-              │
-    ┌─────────▼──────────────────┐
-    │  MemoryAdapter (抽象接口)  │  ← 可扩展多种存储后端
-    │                            │
-    │  ├── FileSystemAdapter     │  ← 文件系统后端（默认）
-    │  │   + 内存缓存层（可配）  │
-    │  │   + 内容全文检索        │
-    │  │   + 文件读写/删除/列表  │
-    │  │                        │
-    │  └── (未来可加)            │
-    │      数据库适配器          │
-    │      云端存储适配器        │
-    └────────────────────────────┘
+## 工具列表
+
+| 工具 | 说明 |
+|------|------|
+| `write_memory` | 写入/更新记忆，自动分类 |
+| `read_memory` | 按标题读取，支持模糊匹配 |
+| `search_memory` | 关键词搜索，关联度排序 |
+| `list_memories` | 列出记忆标题（可按分类过滤） |
+| `delete_memory` | 删除指定记忆 |
+
+## 安装
+
+### Operit 平台
+
+1. 将本仓库放入 `/sdcard/Download/Operit/mcp_plugins/shiro_memoryMCP/`
+2. 在 `mcp_config.json` 中添加：
+
+```json
+{
+  "mcpServers": {
+    "shiro_memoryMCP": {
+      "command": "node",
+      "args": ["shiro_memory_http_wrapper.js"],
+      "env": { "NODE_ENV": "production" },
+      "disabled": false
+    }
+  }
+}
 ```
 
-## 三、文件说明
+3. 重启 MCP 服务即可
 
-- `shiro_memory.js` — MCP 服务端实现（核心）
-  含 MemoryAdapter 抽象接口、FileSystemAdapter 实现、
-  ShiroMemoryMCPServer 调度器
+### 其他 MCP 客户端
 
-- `shiro_memory_index.js` — 前端入口封装
-  含 ShiroMemory 类、事件系统、连接管理、操作队列
+任何支持 stdio 协议的 MCP 客户端均可使用：
 
-- `shiro_memory_README.txt` — 本文档
+```json
+{
+  "command": "node",
+  "args": ["/path/to/shiro_memory_http_wrapper.js"]
+}
+```
 
-## 四、使用方式
+## 数据存储
 
-1. 引入 shiro_memory.js（服务端侧）：
-   ```js
-   const { ShiroMemoryMCPServer, FileSystemAdapter } = require('./shiro_memory.js');
-   const server = new ShiroMemoryMCPServer({ memoryDir: './shiro_memories' });
-   ```
+- 记忆以 JSON 文件存储在 `data/` 目录下
+- 每条记忆格式：`{ title, content, category, tags, createdAt, updatedAt }`
+- 文件名为标题（特殊字符替换为下划线）
 
-2. 引入 shiro_memory_index.js（前端侧）：
-   ```js
-   const { ShiroMemory } = require('./shiro_memory_index.js');
-   const memory = new ShiroMemory({ server });
-   await memory.connect();
-   const result = await memory.read('example_key');
-   ```
+## 分类规则
 
-3. 浏览器环境：
-   ```html
-   <script src="shiro_memory_index.js"></script>
-   <script>
-     const memory = new ShiroMemory({ server: myServer });
-   </script>
-   ```
+| 分类 | 触发关键词 |
+|------|------------|
+| rule | 规则、底线、禁止、必须、不许 等 |
+| tech | 代码、MCP、API、bug、脚本 等 |
+| thought | 念头、想到、感觉、梦到 等 |
+| archive | 对话记录、存档、备份 等 |
+| meta | 记忆系统、索引、分类规则 等 |
+| daily | 以上均不匹配时的默认分类 |
 
-## 五、返回格式（统一）
+## 依赖
 
-成功：`{ success: true, data: ... }`
-失败：`{ success: false, error: "描述", code: "ERROR_CODE" }`
+- Node.js >= 14
+- 无第三方依赖
 
-常见错误码：
-- `NOT_FOUND` — 记忆不存在
-- `READ_FAILED` — 读取失败
-- `WRITE_FAILED` — 写入失败
-- `DELETE_FAILED` — 删除失败
-- `LIST_FAILED` — 列出失败
-- `UNKNOWN` — 未知错误
+## License
 
-## 六、配置参数
-
-**ShiroMemoryMCPServer 构造参数：**
-- `memoryDir` — 记忆文件存储目录（默认: `'./shiro_memories'`）
-- `cacheEnabled` — 是否启用内存缓存（默认: `true`）
-- `cacheTTL` — 缓存过期时间，毫秒（默认: `300000` = 5分钟）
-
-**ShiroMemory 构造参数：**
-- `server` — MCP 服务端实例
-- `adapterName` — 使用的适配器名称（默认: `'filesystem'`）
-- `cacheEnabled` — 是否启用缓存（默认: `true`）
-
-## 七、适配器扩展
-
-1. 继承 `MemoryAdapter` 类
-2. 实现以下方法：
-   - `read(memoryId)` → `{ success, data }` 或抛错
-   - `write(memoryId, content)` → `{ success }` 或抛错
-   - `search(keyword)` → `{ success, data:[] }` 或抛错
-   - `delete(memoryId)` → `{ success }` 或抛错
-   - `list()` → `{ success, data:[] }` 或抛错
-3. `registerAdapter('name', new MyAdapter())`
-4. `useAdapter('name')`
-
-## 八、版本历史
-
-- **v1** — 初始版本：文件系统后端、基础读写
-- **v2** — 新增：适配器抽象接口、统一错误格式、内容检索、内存缓存层
+MIT

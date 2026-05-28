@@ -1,0 +1,7 @@
+data/
+data_old/
+data_merged/
+node_modules/
+debug.log
+*.backup.*
+merge_memories.py
